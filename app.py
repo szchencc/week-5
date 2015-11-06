@@ -16,10 +16,13 @@ from Queue import Queue
 app = Flask(__name__)
 
 q = Queue()
+
 def point_distance(x1, y1, x2, y2):
     return ((x1-x2)**2.0 + (y1-y2)**2.0)**(0.5)
+
 def remap(value, min1, max1, min2, max2):
     return float(min2) + (float(value) - float(min1)) * (float(max2) - float(min2)) / (float(max1) - float(min1))
+
 def normalizeArray(inputArray):
     maxVal = 0
     minVal = 100000000000
@@ -65,6 +68,7 @@ def getData():
 	w = float(request.args.get('w'))
 	h = float(request.args.get('h'))
 	cell_size = float(request.args.get('cell_size'))
+        
         analysis = request.args.get('analysis')
 	
 	print "received coordinates: [" + lat1 + ", " + lat2 + "], [" + lng1 + ", " + lng2 + "]"
@@ -105,7 +109,11 @@ def getData():
 
 		output["features"].append(feature)
 
-	q.put('idle')
+	if analysis == "false":
+	       q.put('idle')
+	       return json.dumps(output)
+
+	q.put('starting analysis...')
 
 	output["analysis"] = []
 
@@ -113,9 +121,7 @@ def getData():
 	numH = int(math.floor(h/cell_size))
 
 	
-	offsetLeft = (w - numW * cell_size) / 2.0 ;
-	offsetTop = (h - numH * cell_size) / 2.0 ;
-	
+
 	grid = []
 	for j in range(numH):
             grid.append([])
@@ -132,7 +138,11 @@ def getData():
             for j in range(max(0, (pos_y-spread)), min(numH, (pos_y+spread))):
                 for i in range(max(0, (pos_x-spread)), min(numW, (pos_x+spread))):
                     grid[j][i] += 2 * math.exp((-point_distance(i,j,pos_x,pos_y)**2)/(2*5**2))
+	
 	grid = normalizeArray(grid)
+
+	offsetLeft = (w - numW * cell_size) / 2.0 ;
+	offsetTop = (h - numH * cell_size) / 2.0 ;
 	
 	for j in range(numH):
 		for i in range(numW):
@@ -145,7 +155,8 @@ def getData():
 			newItem['value'] = grid[j][i]
 
 			output["analysis"].append(newItem)
-
+        q.put('idle')     
+	
 	return json.dumps(output)
 
 if __name__ == "__main__":
